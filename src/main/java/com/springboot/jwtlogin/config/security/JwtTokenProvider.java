@@ -8,7 +8,6 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
@@ -30,7 +29,8 @@ public class JwtTokenProvider {
     private final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
     private final UserDetailsService userDetailsService;
 
-    private final long tokenValidMillisecond = 1000L * 60 * 60;
+    private final long accessTokenValidity = 1000L * 60 * 60;
+    private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 7;
 
     @Value("${jwt.secret}")
     private String secretKey = "secretKey";
@@ -53,7 +53,7 @@ public class JwtTokenProvider {
             .subject(uid)
             .claims(Map.of("roles", roles))
             .issuedAt(now)
-            .expiration(new Date(now.getTime() + tokenValidMillisecond))
+            .expiration(new Date(now.getTime() + accessTokenValidity))
             .signWith(signingKey)
             .compact();
 
@@ -61,6 +61,19 @@ public class JwtTokenProvider {
 
         log.info("[createToken] 토큰 생성 완료");
         return bearerToken;
+    }
+
+    public String createRefreshToken(String userId) {
+        Date now = new Date();
+
+        String token = Jwts.builder()
+            .subject(userId)
+            .issuedAt(now)
+            .expiration(new Date(now.getTime() + refreshTokenValidity))
+            .signWith(signingKey)
+            .compact();
+
+        return "Bearer " + token;
     }
 
     public Authentication getAuthentication(String token) {
